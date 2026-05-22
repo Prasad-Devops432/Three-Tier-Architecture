@@ -1,0 +1,49 @@
+name: implement a CICD workflow for a Java WebApp using GitHub Actions and Maven
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+ build:
+  runs-on: self-hosted
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  steps:
+  - name: checkout code
+    uses: actions/checkout@v3
+  - name: Set up JDK
+    uses: actions/setup-java@v3
+    with:
+      distribution: 'adopt'
+      java-version: '11'
+  - name: Build with Maven
+    run: mvn clean install -f MyWebApp/pom.xml
+  - name: Run SonarQube Scan
+    uses: sonarsource/sonarqube-scan-action@master
+    with:
+      projectBaseDir: .
+      args: >
+        -Dsonar.organization=my-org
+        -Dsonar.projectKey=my-Java-we-app
+        -Dsonar.java.binaries=**/target/classes
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  - name: SonarQube Quality Gate check
+    id: sonarqube-quality-gate-check
+    uses: sonarsource/sonarqube-quality-gate-action@master
+    # Force to fail step after specific time.
+    timeout-minutes: 5
+    env:
+     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }} #OPTIONAL
+  # The possible outputs of the `quality-gate-status` variable are `PASSED`, `WARN` or `FAILED`.
+  - name: "Here is SonarQube Quality Gate Status value.."
+    run: echo "The Quality Gate status is ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
+  - uses: act10ns/slack@v2
+    with:
+      channel: '#learn-devops-60-days'
+      status: ${{ job.status }}
+      steps: ${{ toJson(steps) }}
+    if: always()
