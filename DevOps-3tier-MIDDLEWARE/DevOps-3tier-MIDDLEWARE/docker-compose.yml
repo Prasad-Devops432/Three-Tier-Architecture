@@ -1,0 +1,42 @@
+# LOCAL DEVELOPMENT ONLY.
+# On AWS you'll run backend and frontend on separate EC2 instances against
+# MongoDB Atlas instead — see README.md for that flow. This file just lets
+# you spin the whole stack up on your own laptop first to make sure the
+# code works before you touch AWS at all.
+
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: local-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: local-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/devops3tier
+      - JWT_SECRET=local_dev_secret_change_me
+      - PORT=5000
+    depends_on:
+      - mongo
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: http://localhost:5000/api
+    container_name: local-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
